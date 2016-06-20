@@ -22,7 +22,8 @@
 static void print_help(int argc, char *argv[])
 {
 	printf("Usage:\n");
-	printf(" %s udp_addr server_addr [-d] [-r]\n", argv[0]);
+	printf(" %s udp_listen_addr tcp_server_addr [-d]     tunnel from client to server side\n", argv[0]);
+	printf(" %s udp_remote_addr tcp_server_addr -r [-d]  tunnel from server to client side\n", argv[0]);
 }
 
 int main(int argc, char *argv[])
