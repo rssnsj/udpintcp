@@ -29,9 +29,8 @@ static void print_help(int argc, char *argv[])
 int main(int argc, char *argv[])
 {
 	struct ut_comm_context ctx;
-	char *s_local_addr, *s_udp_addr;
-	struct sockaddr_storage local_addr, udp_addr;
-	socklen_t local_alen = 0, udp_alen = 0;
+	char *s_listen_addr, *s_udp_addr;
+	struct sockaddr_storage listen_addr, udp_addr;
 	int lsnfd = -1, b_sockopt = 1, opt;
 	bool is_front_end = true, is_daemon = false;
 
@@ -47,18 +46,17 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	init_comm_context(&ctx, is_front_end);
-
-	s_local_addr = argv[optind++];
+	s_listen_addr = argv[optind++];
 	s_udp_addr = argv[optind++];
-	get_sockaddr_inx_pair(s_local_addr, &local_addr, &local_alen);
-	get_sockaddr_inx_pair(s_udp_addr, &udp_addr, &udp_alen);
+	get_sockaddr_inx_pair(s_listen_addr, &listen_addr);
+	get_sockaddr_inx_pair(s_udp_addr, &udp_addr);
+
+	init_comm_context(&ctx, is_front_end);
 
 	if (ctx.is_front_end) {
 		ctx.udp_peer_addr = udp_addr;
-		ctx.udp_peer_alen = udp_alen;
 	} else {
-		ctx.back_end.udpfd = create_udp_server_fd(&udp_addr, udp_alen);
+		ctx.back_end.udpfd = create_udp_server_fd(&udp_addr);
 		if (ctx.back_end.udpfd < 0)
 			exit(1);
 	}
@@ -67,9 +65,12 @@ int main(int argc, char *argv[])
 	assert(lsnfd >= 0);
 
 	setsockopt(lsnfd, SOL_SOCKET, SO_REUSEADDR, &b_sockopt, sizeof(b_sockopt));
-	if (bind(lsnfd, (struct sockaddr *)&local_addr, local_alen) < 0) {
-		fprintf(stderr, "*** Failed to bind '%s': %s.\n", s_local_addr,
-				strerror(errno));
+	if (bind(lsnfd, (struct sockaddr *)&listen_addr,
+		sizeof_sockaddr(&listen_addr)) < 0) {
+		char s_addr[64] = ""; int port = 0;
+		sockaddr_to_print(&listen_addr, s_addr, &port);
+		syslog(LOG_ERR, "*** Failed to bind '%s:%d': %s.\n",
+				s_addr, port, strerror(errno));
 		exit(1);
 	}
 	listen(lsnfd, 10);

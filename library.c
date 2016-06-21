@@ -40,8 +40,7 @@ int do_daemonize(void)
 	return 0;
 }
 
-int get_sockaddr_inx_pair(const char *pair,
-		struct sockaddr_storage *sa, socklen_t *sa_len)
+int get_sockaddr_inx_pair(const char *pair, struct sockaddr_storage *sa)
 {
 	struct addrinfo hints, *result;
 	char host[51] = "", s_port[10] = "";
@@ -90,7 +89,7 @@ int get_sockaddr_inx_pair(const char *pair,
 
 	/* Get the first resolution. */
 	memcpy(sa, result->ai_addr, result->ai_addrlen);
-	*sa_len = result->ai_addrlen;
+	/* *sa_len = result->ai_addrlen; */
 
 	freeaddrinfo(result);
 	return 0;
@@ -147,7 +146,7 @@ static struct front_end_conn *get_conn_by_client_addr(
 	ce->sockfd = socket(AF_INET, SOCK_DGRAM, 0);
 	assert(ce->sockfd);
 	if (connect(ce->sockfd, (struct sockaddr *)&ctx->udp_peer_addr,
-		ctx->udp_peer_alen) < 0) {
+		sizeof_sockaddr(&ctx->udp_peer_addr)) < 0) {
 		syslog(LOG_ERR, "*** Failed to connect UDP remote server: %s.\n",
 				strerror(errno));
 		close(ce->sockfd);
@@ -196,16 +195,17 @@ static struct front_end_conn *get_conn_by_upstream_udpfd(
 }
 #endif
 
-int create_udp_client_fd(struct sockaddr_storage *addr, socklen_t alen)
+int create_udp_client_fd(struct sockaddr_storage *addr)
 {
 	int fd, rc, port = 0;
 	char s_addr[64] = "";
 
 	fd = socket(AF_INET, SOCK_DGRAM, 0);
 	assert(fd >= 0);
-	if ((rc = connect(fd, (struct sockaddr *)addr, alen)) < 0) {
+	if ((rc = connect(fd, (struct sockaddr *)addr,
+		sizeof_sockaddr(addr))) < 0) {
 		sockaddr_to_print(addr, s_addr, &port);
-		syslog(LOG_ERR, "*** Failed to connect %s:%d: %s.\n",
+		syslog(LOG_ERR, "*** Failed to connect '%s:%d': %s.\n",
 				s_addr, port, strerror(errno));
 		close(fd);
 		return rc;
@@ -214,16 +214,17 @@ int create_udp_client_fd(struct sockaddr_storage *addr, socklen_t alen)
 	return fd;
 }
 
-int create_udp_server_fd(struct sockaddr_storage *addr, socklen_t alen)
+int create_udp_server_fd(struct sockaddr_storage *addr)
 {
 	int fd, rc, port = 0;
 	char s_addr[64] = "";
 
 	fd = socket(AF_INET, SOCK_DGRAM, 0);
 	assert(fd >= 0);
-	if ((rc = bind(fd, (struct sockaddr *)addr, alen)) < 0) {
+	if ((rc = bind(fd, (struct sockaddr *)addr,
+		sizeof_sockaddr(addr))) < 0) {
 		sockaddr_to_print(addr, s_addr, &port);
-		syslog(LOG_ERR, "*** Failed to bind %s:%d: %s.\n",
+		syslog(LOG_ERR, "*** Failed to bind '%s:%d': %s.\n",
 				s_addr, port, strerror(errno));
 		close(fd);
 		return rc;
@@ -355,8 +356,13 @@ int process_udp_receive(struct ut_comm_context *ctx, struct front_end_conn *ce)
 
 	if (ctx->is_front_end) {
 		rc = recv(ce->sockfd, rx_buf, UT_UDP_RX_BUFFER_SIZE, 0);
-		if (rc <= 0)
+		if (rc <= 0) {
+			syslog(LOG_ERR, "*** Failed to receive from frontend UDP socket: %s.\n",
+					strerror(errno));
 			return -1;
+		}
+		rx_len = rc;
+
 		client_ip = ce->client_ip;
 		client_port = ce->client_port;
 		ce->last_active = current_ts;
@@ -366,18 +372,17 @@ int process_udp_receive(struct ut_comm_context *ctx, struct front_end_conn *ce)
 
 		rc = recvfrom(ctx->back_end.udpfd, rx_buf, UT_UDP_RX_BUFFER_SIZE,
 				0, (struct sockaddr *)&client_addr, &client_alen);
-		assert(client_addr.ss_family == AF_INET);
+		if (rc <= 0) {
+			syslog(LOG_ERR, "*** Failed to receive from backend UDP socket: %s.\n",
+					strerror(errno));
+			return -1;
+		}
+		rx_len = rc;
 
+		assert(client_addr.ss_family == AF_INET);
 		client_ip = ((struct sockaddr_in *)&client_addr)->sin_addr.s_addr;
 		client_port = ((struct sockaddr_in *)&client_addr)->sin_port;
 	}
-	if (rc <= 0) {
-		/* Error */
-		syslog(LOG_ERR, "*** Failed to receive from UDP socket: %s.\n",
-				strerror(errno));
-		return -1;
-	}
-	rx_len = rc;
 
 	/* Send the packet */
 	if (ctx->tcpfd < 0)

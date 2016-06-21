@@ -23,6 +23,9 @@ typedef int bool;
 
 #define SET_IF_LARGER(a, b)  do { if ((b) > (a)) (a) = (b); } while(0)
 
+#define sizeof_sockaddr(s)  ((s)->ss_family == AF_INET6 ? \
+		sizeof(struct sockaddr_in6) : sizeof(struct sockaddr_in))
+
 #define TCP_DEAD_TIMEOUT  15
 #define UDP_SESSION_TIMEOUT  60
 #define KEEPALIVE_INTERVAL  3
@@ -56,7 +59,6 @@ struct ut_comm_context {
 	};
 
 	struct sockaddr_storage udp_peer_addr;
-	socklen_t udp_peer_alen;
 
 	char tcp_rx_buf[UT_TCP_RX_BUFFER_SIZE];
 };
@@ -71,12 +73,11 @@ struct ut_tcp_hdr {
 void init_comm_context(struct ut_comm_context *ctx, bool is_front_end);
 void recycle_front_end_conn(struct ut_comm_context *ctx);
 
-int get_sockaddr_inx_pair(const char *pair,
-		struct sockaddr_storage *sa, socklen_t *sa_len);
+int get_sockaddr_inx_pair(const char *pair, struct sockaddr_storage *sa);
 char *sockaddr_to_print(const void *addr, char *host, int *port);
 
-int create_udp_client_fd(struct sockaddr_storage *addr, socklen_t alen);
-int create_udp_server_fd(struct sockaddr_storage *addr, socklen_t alen);
+int create_udp_client_fd(struct sockaddr_storage *addr);
+int create_udp_server_fd(struct sockaddr_storage *addr);
 
 int process_tcp_receive(struct ut_comm_context *ctx);
 int process_udp_receive(struct ut_comm_context *ctx, struct front_end_conn *ce);

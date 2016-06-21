@@ -31,7 +31,6 @@ int main(int argc, char *argv[])
 	struct ut_comm_context ctx;
 	char *s_udp_addr, *s_server_addr;
 	struct sockaddr_storage udp_addr, server_addr;
-	socklen_t udp_alen = 0, server_alen = 0;
 	int opt;
 	bool is_front_end = false, is_daemon = false;
 
@@ -47,18 +46,17 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	init_comm_context(&ctx, is_front_end);
-
 	s_udp_addr = argv[optind++];
 	s_server_addr = argv[optind++];
-	get_sockaddr_inx_pair(s_udp_addr, &udp_addr, &udp_alen);
-	get_sockaddr_inx_pair(s_server_addr, &server_addr, &server_alen);
+	get_sockaddr_inx_pair(s_udp_addr, &udp_addr);
+	get_sockaddr_inx_pair(s_server_addr, &server_addr);
+
+	init_comm_context(&ctx, is_front_end);
 
 	if (ctx.is_front_end) {
 		ctx.udp_peer_addr = udp_addr;
-		ctx.udp_peer_alen = udp_alen;
 	} else {
-		ctx.back_end.udpfd = create_udp_server_fd(&udp_addr, udp_alen);
+		ctx.back_end.udpfd = create_udp_server_fd(&udp_addr);
 		if (ctx.back_end.udpfd < 0)
 			exit(1);
 	}
@@ -78,8 +76,9 @@ int main(int argc, char *argv[])
 
 		/* Check the upstream connection and reconnect */
 		if (ctx.tcpfd < 0 || time(NULL) - ctx.last_tcp_recv >= TCP_DEAD_TIMEOUT) {
-			char s_svr_addr[64] = "";
-			int svr_port = 0;
+			char s_addr[64] = ""; int port = 0;
+
+			sockaddr_to_print(&server_addr, s_addr, &port);
 
 			if (ctx.tcpfd >= 0) {
 				syslog(LOG_WARNING, "Close TCP connection due to keepalive failure.\n");
@@ -89,9 +88,10 @@ int main(int argc, char *argv[])
 			ctx.tcpfd = socket(AF_INET, SOCK_STREAM, 0);
 			assert(ctx.tcpfd >= 0);
 
-			if (connect(ctx.tcpfd, (struct sockaddr *)&server_addr, server_alen) < 0) {
-				syslog(LOG_WARNING, "Failed to connect '%s': %s. Retrying later.\n",
-						s_server_addr, strerror(errno));
+			if (connect(ctx.tcpfd, (struct sockaddr *)&server_addr,
+				sizeof_sockaddr(&server_addr)) < 0) {
+				syslog(LOG_WARNING, "Failed to connect '%s:%d': %s. Retrying later.\n",
+						s_addr, port, strerror(errno));
 				destroy_tcp_connection(&ctx);
 				sleep(5);
 				continue;
@@ -99,8 +99,7 @@ int main(int argc, char *argv[])
 
 			tcp_connection_established(&ctx);
 
-			sockaddr_to_print(&server_addr, s_svr_addr, &svr_port);
-			syslog(LOG_INFO, "Connected to server '%s:%d'.\n", s_svr_addr, svr_port);
+			syslog(LOG_INFO, "Connected to server '%s:%d'.\n", s_addr, port);
 			continue;
 		}
 
