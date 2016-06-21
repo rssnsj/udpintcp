@@ -95,20 +95,20 @@ int get_sockaddr_inx_pair(const char *pair, struct sockaddr_storage *sa)
 	return 0;
 }
 
-char *sockaddr_to_print(const void *addr, char *host, int *port)
+char *sockaddr_to_print(const struct sockaddr_storage *addr,
+		char *host, int *port)
 {
 	const union __sa_union {
-		struct sockaddr_storage ss;
-		struct sockaddr_in sa4;
-		struct sockaddr_in6 sa6;
-	} *sa = addr;
+		struct sockaddr_in in;
+		struct sockaddr_in6 in6;
+	} *aa = (void *)addr;
 
-	if (sa->ss.ss_family == AF_INET) {
-		inet_ntop(AF_INET, &sa->sa4.sin_addr, host, 16);
-		*port = ntohs(sa->sa4.sin_port);
-	} else if (sa->ss.ss_family == AF_INET6) {
-		inet_ntop(AF_INET6, &sa->sa6.sin6_addr, host, 40);
-		*port = ntohs(sa->sa6.sin6_port);
+	if (addr->ss_family == AF_INET) {
+		inet_ntop(AF_INET, &aa->in.sin_addr, host, 16);
+		*port = ntohs(aa->in.sin_port);
+	} else if (addr->ss_family == AF_INET6) {
+		inet_ntop(AF_INET6, &aa->in6.sin6_addr, host, 40);
+		*port = ntohs(aa->in6.sin6_port);
 	} else {
 		return NULL;
 	}
@@ -132,6 +132,7 @@ static struct front_end_conn *get_conn_by_client_addr(
 {
 	struct front_end_conn *ce;
 
+	/* Try to find an existing session */
 	list_for_each_entry (ce, &ctx->front_end.conn_list, list) {
 		if (ce->client_ip == client_ip && ce->client_port == client_port)
 			return ce;

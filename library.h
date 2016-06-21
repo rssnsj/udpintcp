@@ -74,7 +74,8 @@ void init_comm_context(struct ut_comm_context *ctx, bool is_front_end);
 void recycle_front_end_conn(struct ut_comm_context *ctx);
 
 int get_sockaddr_inx_pair(const char *pair, struct sockaddr_storage *sa);
-char *sockaddr_to_print(const void *addr, char *host, int *port);
+char *sockaddr_to_print(const struct sockaddr_storage *addr,
+		char *host, int *port);
 
 int create_udp_client_fd(struct sockaddr_storage *addr);
 int create_udp_server_fd(struct sockaddr_storage *addr);
