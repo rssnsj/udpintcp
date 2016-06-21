@@ -46,6 +46,8 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
+	openlog("ut-client", LOG_PID|LOG_CONS|LOG_PERROR|LOG_NDELAY, LOG_USER);
+
 	s_udp_addr = argv[optind++];
 	s_server_addr = argv[optind++];
 	get_sockaddr_inx_pair(s_udp_addr, &udp_addr);
@@ -63,8 +65,6 @@ int main(int argc, char *argv[])
 
 	if (is_daemon)
 		do_daemonize();
-
-	openlog("ut-client", LOG_PID|LOG_CONS|LOG_PERROR|LOG_NDELAY, LOG_USER);
 
 	signal(SIGPIPE, SIG_IGN);
 

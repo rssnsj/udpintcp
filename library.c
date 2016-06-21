@@ -205,7 +205,7 @@ int create_udp_client_fd(struct sockaddr_storage *addr)
 	if ((rc = connect(fd, (struct sockaddr *)addr,
 		sizeof_sockaddr(addr))) < 0) {
 		sockaddr_to_print(addr, s_addr, &port);
-		syslog(LOG_ERR, "*** Failed to connect '%s:%d': %s.\n",
+		fprintf(stderr, "*** Failed to connect '%s:%d': %s.\n",
 				s_addr, port, strerror(errno));
 		close(fd);
 		return rc;
@@ -224,7 +224,7 @@ int create_udp_server_fd(struct sockaddr_storage *addr)
 	if ((rc = bind(fd, (struct sockaddr *)addr,
 		sizeof_sockaddr(addr))) < 0) {
 		sockaddr_to_print(addr, s_addr, &port);
-		syslog(LOG_ERR, "*** Failed to bind '%s:%d': %s.\n",
+		fprintf(stderr, "*** Failed to bind '%s:%d': %s.\n",
 				s_addr, port, strerror(errno));
 		close(fd);
 		return rc;

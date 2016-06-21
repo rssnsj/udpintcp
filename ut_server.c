@@ -46,6 +46,8 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
+	openlog("ut-server", LOG_PID|LOG_CONS|LOG_PERROR|LOG_NDELAY, LOG_USER);
+
 	s_listen_addr = argv[optind++];
 	s_udp_addr = argv[optind++];
 	get_sockaddr_inx_pair(s_listen_addr, &listen_addr);
@@ -69,16 +71,14 @@ int main(int argc, char *argv[])
 		sizeof_sockaddr(&listen_addr)) < 0) {
 		char s_addr[64] = ""; int port = 0;
 		sockaddr_to_print(&listen_addr, s_addr, &port);
-		syslog(LOG_ERR, "*** Failed to bind '%s:%d': %s.\n",
-				s_addr, port, strerror(errno));
+		fprintf(stderr, "*** Failed to bind '%s:%d': %s.\n", s_addr, port,
+				strerror(errno));
 		exit(1);
 	}
 	listen(lsnfd, 10);
 
 	if (is_daemon)
 		do_daemonize();
-
-	openlog("ut-server", LOG_PID|LOG_CONS|LOG_PERROR|LOG_NDELAY, LOG_USER);
 
 	signal(SIGPIPE, SIG_IGN);
 
