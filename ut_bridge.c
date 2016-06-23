@@ -120,12 +120,13 @@ static void send_bridge_keepalive(struct bridge_conn_ctx *ctx)
 	hdr.data_len = htons(0);
 	send_all(ctx->tcpfd, &hdr, UT_TCP_HDR_LEN, 0);
 	ctx->last_tcp_send = time(NULL);
-	printf("Bridge heartbeat sent. TCP buffer: %lu\n", (unsigned long)ctx->tcp_rx_dlen);;
+	printf("Heartbeat sent. TCP buffer: %lu\n", (unsigned long)ctx->tcp_rx_dlen);;
 }
 
 static void print_help(int argc, char *argv[])
 {
 	printf("Usage:\n");
+	printf(" %s server1:port1 server2:port2 [-d]\n", argv[0]);
 }
 
 int main(int argc, char *argv[])

@@ -18,7 +18,7 @@ ut-bridge: ut_bridge.o library.o
 	$(CC) -c -Wall $(CFLAGS) -o $@ $<
 
 install: all
-	cp -f ut-client ut-server /usr/local/bin/
+	cp -f $(TARGET_BINARIES) /usr/local/bin/
 
 up: clean
 	@echo "Nothing done"
