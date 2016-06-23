@@ -122,6 +122,7 @@ void init_comm_context(struct ut_comm_context *ctx, bool is_front_end)
 	ctx->is_front_end = is_front_end;
 	if (is_front_end) {
 		INIT_LIST_HEAD(&ctx->front_end.conn_list);
+		ctx->last_fe_recycle = time(NULL);
 	} else {
 		ctx->back_end.udpfd = -1;
 	}
@@ -144,13 +145,13 @@ static struct front_end_conn *get_conn_by_client_addr(
 	ce->client_ip = client_ip;
 	ce->client_port = client_port;
 
-	ce->sockfd = socket(AF_INET, SOCK_DGRAM, 0);
-	assert(ce->sockfd);
-	if (connect(ce->sockfd, (struct sockaddr *)&ctx->udp_peer_addr,
+	ce->udpfd = socket(AF_INET, SOCK_DGRAM, 0);
+	assert(ce->udpfd);
+	if (connect(ce->udpfd, (struct sockaddr *)&ctx->udp_peer_addr,
 		sizeof_sockaddr(&ctx->udp_peer_addr)) < 0) {
 		syslog(LOG_ERR, "*** Failed to connect UDP remote server: %s.\n",
 				strerror(errno));
-		close(ce->sockfd);
+		close(ce->udpfd);
 		free(ce);
 		return NULL;
 	}
@@ -175,7 +176,7 @@ void recycle_front_end_conn(struct ut_comm_context *ctx)
 			syslog(LOG_INFO, "Recycled UDP session: %s:%d.\n",
 					inet_ntoa(*(struct in_addr *)&ce->client_ip),
 					(int)htons(ce->client_port));
-			close(ce->sockfd);
+			close(ce->udpfd);
 			free(ce);
 		}
 	}
@@ -188,7 +189,7 @@ static struct front_end_conn *get_conn_by_upstream_udpfd(
 	struct front_end_conn *ce;
 
 	list_for_each_entry (ce, &ctx->front_end.conn_list, list) {
-		if (ce->sockfd == udpfd)
+		if (ce->udpfd == udpfd)
 			return ce;
 	}
 
@@ -234,7 +235,7 @@ int create_udp_server_fd(struct sockaddr_storage *addr)
 	return fd;
 }
 
-static ssize_t send_all(int sockfd, const void *buf, size_t len, int flags)
+ssize_t send_all(int sockfd, const void *buf, size_t len, int flags)
 {
 	const char *b = (char *)buf;
 	ssize_t rpos = 0, rc;
@@ -303,7 +304,7 @@ static void __handle_tcp_rx_data(struct ut_comm_context *ctx)
 				struct front_end_conn *ce = get_conn_by_client_addr(ctx,
 						hdr->client_ip, hdr->client_port);
 				if (ce) {
-					send(ce->sockfd, pkt_data, pkt_len, 0);
+					send(ce->udpfd, pkt_data, pkt_len, 0);
 					ce->last_active = current_ts;
 				}
 			} else {
@@ -323,8 +324,10 @@ static void __handle_tcp_rx_data(struct ut_comm_context *ctx)
 	}
 
 	/* Keep the incomplete packet data in buffer */
-	memmove(ctx->tcp_rx_buf, ctx->tcp_rx_buf + rpos, ctx->tcp_rx_dlen - rpos);
-	ctx->tcp_rx_dlen -= rpos;
+	if (rpos > 0) {
+		memmove(ctx->tcp_rx_buf, ctx->tcp_rx_buf + rpos, ctx->tcp_rx_dlen - rpos);
+		ctx->tcp_rx_dlen -= rpos;
+	}
 }
 
 int process_tcp_receive(struct ut_comm_context *ctx)
@@ -356,7 +359,7 @@ int process_udp_receive(struct ut_comm_context *ctx, struct front_end_conn *ce)
 	int rc;
 
 	if (ctx->is_front_end) {
-		rc = recv(ce->sockfd, rx_buf, UT_UDP_RX_BUFFER_SIZE, 0);
+		rc = recv(ce->udpfd, rx_buf, UT_UDP_RX_BUFFER_SIZE, 0);
 		if (rc <= 0) {
 			syslog(LOG_ERR, "*** Failed to receive from frontend UDP socket: %s.\n",
 					strerror(errno));
@@ -395,7 +398,7 @@ int process_udp_receive(struct ut_comm_context *ctx, struct front_end_conn *ce)
 
 	rc = send_all(ctx->tcpfd, tx_buf, UT_TCP_HDR_LEN + rx_len, 0);
 	if (rc <= 0) {
-		syslog(LOG_INFO, "TCP connection closed.\n");
+		syslog(LOG_INFO, "TCP connection broken.\n");
 		destroy_tcp_connection(ctx);
 		return -1;
 	}
@@ -429,7 +432,6 @@ void send_tcp_keepalive(struct ut_comm_context *ctx)
 		return;
 	hdr.data_len = htons(0);
 	send_all(ctx->tcpfd, &hdr, UT_TCP_HDR_LEN, 0);
-	ctx->last_tcp_send = time(NULL);
 	printf("Heartbeat sent. TCP buffer: %lu\n", (unsigned long)ctx->tcp_rx_dlen);;
 }
 

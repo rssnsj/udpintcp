@@ -85,10 +85,11 @@ int main(int argc, char *argv[])
 	for (;;) {
 		fd_set rset;
 		struct timeval timeo;
-		int maxfd = 0, nfds;
+		int maxfd = -1, nfds;
 		struct front_end_conn *ce;
+		time_t current_ts = time(NULL);
 
-		if (ctx.tcpfd >= 0 && time(NULL) - ctx.last_tcp_recv >= TCP_DEAD_TIMEOUT) {
+		if (ctx.tcpfd >= 0 && current_ts - ctx.last_tcp_recv >= TCP_DEAD_TIMEOUT) {
 			destroy_tcp_connection(&ctx);
 			syslog(LOG_WARNING, "Close TCP connection due to keepalive failure.\n");
 		}
@@ -107,8 +108,8 @@ int main(int argc, char *argv[])
 
 		if (ctx.is_front_end) {
 			list_for_each_entry (ce, &ctx.front_end.conn_list, list) {
-				FD_SET(ce->sockfd, &rset);
-				SET_IF_LARGER(maxfd, ce->sockfd);
+				FD_SET(ce->udpfd, &rset);
+				SET_IF_LARGER(maxfd, ce->udpfd);
 			}
 		} else {
 			FD_SET(ctx.back_end.udpfd, &rset);
@@ -119,7 +120,7 @@ int main(int argc, char *argv[])
 
 		nfds = select(maxfd + 1, &rset, NULL, NULL, &timeo);
 		if (nfds == 0) {
-			goto keepalive;
+			goto heartbeat;
 		} else if (nfds < 0) {
 			if (errno == EINTR || errno == ERESTART) {
 				continue;
@@ -152,12 +153,12 @@ int main(int argc, char *argv[])
 
 		if (FD_ISSET(ctx.tcpfd, &rset)) {
 			if (process_tcp_receive(&ctx) < 0)
-				goto keepalive;
+				goto heartbeat;
 		}
 
 		if (ctx.is_front_end) {
 			list_for_each_entry (ce, &ctx.front_end.conn_list, list) {
-				if (FD_ISSET(ce->sockfd, &rset))
+				if (FD_ISSET(ce->udpfd, &rset))
 					process_udp_receive(&ctx, ce);
 			}
 		} else {
@@ -165,12 +166,16 @@ int main(int argc, char *argv[])
 				process_udp_receive(&ctx, NULL);
 		}
 
-keepalive:
+heartbeat:
+		current_ts = time(NULL);
 		/* Send keep-alive packet */
-		if (time(NULL) - ctx.last_tcp_send >= KEEPALIVE_INTERVAL) {
+		if (ctx.tcpfd >= 0 && current_ts - ctx.last_tcp_send >= KEEPALIVE_INTERVAL) {
+			ctx.last_tcp_send = current_ts;
 			send_tcp_keepalive(&ctx);
-			if (ctx.is_front_end)
-				recycle_front_end_conn(&ctx);
+		}
+		if (ctx.is_front_end && current_ts - ctx.last_fe_recycle >= FRONTEND_RECYCLE_INTERVAL) {
+			recycle_front_end_conn(&ctx);
+			ctx.last_fe_recycle = current_ts;
 		}
 	}
 

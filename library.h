@@ -26,14 +26,37 @@ typedef int bool;
 #define sizeof_sockaddr(s)  ((s)->ss_family == AF_INET6 ? \
 		sizeof(struct sockaddr_in6) : sizeof(struct sockaddr_in))
 
+int get_sockaddr_inx_pair(const char *pair, struct sockaddr_storage *sa);
+char *sockaddr_to_print(const struct sockaddr_storage *addr,
+		char *host, int *port);
+int do_daemonize(void);
+ssize_t send_all(int sockfd, const void *buf, size_t len, int flags);
+
+static inline int set_nonblock(int sockfd)
+{
+	int rc = fcntl(sockfd, F_GETFD, 0);
+	if (fcntl(sockfd, F_SETFL, rc | O_NONBLOCK) == -1)
+		return -1;
+	return 0;
+}
+
+static inline void hexdump(void *d, size_t len)
+{
+	unsigned char *s;
+	for (s = d; len; len--, s++)
+		printf("%02x ", (unsigned int)*s);
+	printf("\n");
+}
+
 #define TCP_DEAD_TIMEOUT  15
 #define UDP_SESSION_TIMEOUT  60
 #define KEEPALIVE_INTERVAL  3
+#define FRONTEND_RECYCLE_INTERVAL  5
 
 struct front_end_conn {
 	struct list_head list;
 	time_t last_active;
-	int sockfd;
+	int udpfd;
 	be32 client_ip;
 	be16 client_port;
 };
@@ -46,6 +69,7 @@ struct ut_comm_context {
 
 	time_t last_tcp_recv;
 	time_t last_tcp_send;
+	time_t last_fe_recycle;
 	size_t tcp_rx_dlen;
 
 	bool is_front_end;
@@ -73,10 +97,6 @@ struct ut_tcp_hdr {
 void init_comm_context(struct ut_comm_context *ctx, bool is_front_end);
 void recycle_front_end_conn(struct ut_comm_context *ctx);
 
-int get_sockaddr_inx_pair(const char *pair, struct sockaddr_storage *sa);
-char *sockaddr_to_print(const struct sockaddr_storage *addr,
-		char *host, int *port);
-
 int create_udp_client_fd(struct sockaddr_storage *addr);
 int create_udp_server_fd(struct sockaddr_storage *addr);
 
@@ -86,23 +106,5 @@ int process_udp_receive(struct ut_comm_context *ctx, struct front_end_conn *ce);
 void tcp_connection_established(struct ut_comm_context *ctx);
 void destroy_tcp_connection(struct ut_comm_context *ctx);
 void send_tcp_keepalive(struct ut_comm_context *ctx);
-
-int do_daemonize(void);
-
-static inline int set_nonblock(int sockfd)
-{
-	int rc = fcntl(sockfd, F_GETFD, 0);
-	if (fcntl(sockfd, F_SETFL, rc | O_NONBLOCK) == -1)
-		return -1;
-	return 0;
-}
-
-static inline void hexdump(void *d, size_t len)
-{
-	unsigned char *s;
-	for (s = d; len; len--, s++)
-		printf("%02x ", (unsigned int)*s);
-	printf("\n");
-}
 
 #endif /* __LIBRARY_H */
