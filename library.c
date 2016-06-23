@@ -283,11 +283,22 @@ again:
 	return rpos;
 }
 
-static void __handle_tcp_rx_data(struct ut_comm_context *ctx)
+int process_tcp_receive(struct ut_comm_context *ctx)
 {
 	size_t rpos = 0, remain;
 	time_t current_ts = time(NULL);
+	int rc;
 
+	rc = recv(ctx->tcpfd, ctx->tcp_rx_buf + ctx->tcp_rx_dlen,
+			UT_TCP_RX_BUFFER_SIZE - ctx->tcp_rx_dlen, 0);
+	if (rc <= 0) {
+		syslog(LOG_INFO, "TCP connection closed.\n");
+		destroy_tcp_connection(ctx);
+		return -1;
+	}
+	ctx->tcp_rx_dlen += rc;
+
+	/* >>>> Handle the received data - begin <<<< */
 	while ((remain = ctx->tcp_rx_dlen - rpos) >= UT_TCP_HDR_LEN) {
 		struct ut_tcp_hdr *hdr = (void *)(ctx->tcp_rx_buf + rpos);
 		char *pkt_data = ctx->tcp_rx_buf + rpos + UT_TCP_HDR_LEN;
@@ -328,22 +339,8 @@ static void __handle_tcp_rx_data(struct ut_comm_context *ctx)
 		memmove(ctx->tcp_rx_buf, ctx->tcp_rx_buf + rpos, ctx->tcp_rx_dlen - rpos);
 		ctx->tcp_rx_dlen -= rpos;
 	}
-}
+	/* >>>> Handle the received data - end <<<< */
 
-int process_tcp_receive(struct ut_comm_context *ctx)
-{
-	int rc;
-
-	rc = recv(ctx->tcpfd, ctx->tcp_rx_buf + ctx->tcp_rx_dlen,
-			UT_TCP_RX_BUFFER_SIZE - ctx->tcp_rx_dlen, 0);
-	if (rc <= 0) {
-		syslog(LOG_INFO, "TCP connection closed.\n");
-		destroy_tcp_connection(ctx);
-		return -1;
-	}
-	ctx->tcp_rx_dlen += rc;
-
-	__handle_tcp_rx_data(ctx);
 	return 0;
 }
 

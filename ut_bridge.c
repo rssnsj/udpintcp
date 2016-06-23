@@ -89,7 +89,9 @@ static int process_bridge_conn_receive(struct bridge_conn_ctx *ctx)
 			if (ctx->mate_ctx->tcpfd >= 0) {
 				int rc = send_all(ctx->mate_ctx->tcpfd, hdr,
 						UT_TCP_HDR_LEN + pkt_len, 0);
-				if (rc <= 0) {
+				if (rc > 0) {
+					ctx->mate_ctx->last_tcp_send = current_ts;
+				} else {
 					syslog(LOG_INFO, "Bridge connection broken.\n");
 					destroy_bridge_connection(ctx->mate_ctx);
 				}
@@ -119,7 +121,6 @@ static void send_bridge_keepalive(struct bridge_conn_ctx *ctx)
 		return;
 	hdr.data_len = htons(0);
 	send_all(ctx->tcpfd, &hdr, UT_TCP_HDR_LEN, 0);
-	ctx->last_tcp_send = time(NULL);
 	printf("Heartbeat sent. TCP buffer: %lu\n", (unsigned long)ctx->tcp_rx_dlen);;
 }
 
@@ -241,8 +242,10 @@ heartbeat:
 		for (i = 0; i < 2; i++) {
 			struct bridge_conn_ctx *ctx = &conn_pair[i];
 			if (ctx->tcpfd >= 0 &&
-				time(NULL) - ctx->last_tcp_send >= KEEPALIVE_INTERVAL)
+				time(NULL) - ctx->last_tcp_send >= KEEPALIVE_INTERVAL) {
+				ctx->last_tcp_send = time(NULL);
 				send_bridge_keepalive(ctx);
+			}
 		}
 	}
 
