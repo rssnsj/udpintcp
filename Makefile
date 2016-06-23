@@ -12,7 +12,7 @@ ut-server: ut_server.o library.o
 	$(CC) -o $@ $^ $(LDFLAGS)
 
 ut-bridge: ut_bridge.o library.o
-	$(CC) -o $@ $^ $(LDFLAGS) -lpthread
+	$(CC) -o $@ $^ $(LDFLAGS)
 
 %.o: %.c library.h list.h
 	$(CC) -c -Wall $(CFLAGS) -o $@ $<

@@ -83,11 +83,9 @@ static int process_bridge_conn_receive(struct bridge_conn_ctx *ctx)
 			ctx->last_tcp_recv = current_ts;
 			printf("Heartbeat received.\n");
 		} else if (remain - UT_TCP_HDR_LEN >= pkt_len) {
-			/**
-			 * A complete packet seen.
-			 * Send to the other side of the bridge if the
-			 * connection is alive.
-			 */
+			/* A complete UDP packet seen */
+			ctx->last_tcp_recv = current_ts;
+			/* Send to the other side of the bridge */
 			if (ctx->mate_ctx->tcpfd >= 0) {
 				int rc = send_all(ctx->mate_ctx->tcpfd, hdr,
 						UT_TCP_HDR_LEN + pkt_len, 0);
@@ -164,7 +162,7 @@ int main(int argc, char *argv[])
 		fd_set rset;
 		int maxfd, i;
 
-		/* Check state of both connections and reconnect if neccessary */
+		/* 1. Check both connections and reconnect if neccessary */
 		for (i = 0; i < 2; i++) {
 			struct bridge_conn_ctx *ctx = &conn_pair[i];
 
@@ -188,15 +186,16 @@ int main(int argc, char *argv[])
 					bridge_conn_established(ctx);
 					syslog(LOG_INFO, "Connected to server '%s:%d'.\n", s_addr, port);
 				} else {
+					destroy_bridge_connection(ctx);
 					syslog(LOG_WARNING, "Failed to connect '%s:%d': %s. Retrying later.\n",
 							s_addr, port, strerror(errno));
-					/* Mark the failure time to avoid connecting too fast */
+					/* Mark the failure time to avoid retrying too fast */
 					ctx->last_tcp_send = time(NULL);
 				}
 			}
 		}
 
-		/* Process receiving of each socket */
+		/* 2. Process receiving of each socket */
 		FD_ZERO(&rset);
 		maxfd = -1;
 
@@ -237,7 +236,7 @@ int main(int argc, char *argv[])
 		}
 
 heartbeat:
-		/* Send keep-alive packet */
+		/* 3. Send keep-alive packet */
 		for (i = 0; i < 2; i++) {
 			struct bridge_conn_ctx *ctx = &conn_pair[i];
 			if (ctx->tcpfd >= 0 &&
