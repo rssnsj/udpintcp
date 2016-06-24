@@ -66,7 +66,7 @@ static int process_bridge_conn_receive(struct bridge_conn_ctx *ctx)
 	rc = recv(ctx->tcpfd, ctx->tcp_rx_buf + ctx->tcp_rx_dlen,
 			UT_TCP_RX_BUFFER_SIZE - ctx->tcp_rx_dlen, 0);
 	if (rc <= 0) {
-		syslog(LOG_INFO, "TCP connection closed.\n");
+		syslog(LOG_INFO, "Bridge connection broken.\n");
 		destroy_bridge_connection(ctx);
 		return -1;
 	}

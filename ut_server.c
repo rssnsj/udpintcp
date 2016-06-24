@@ -146,7 +146,7 @@ int main(int argc, char *argv[])
 				tcp_connection_established(&ctx);
 
 				sockaddr_to_print(&cli_addr, s_cli_addr, &cli_port);
-				syslog(LOG_INFO, "Client '%s:%d' connected.\n", s_cli_addr, cli_port);
+				syslog(LOG_INFO, "Client '%s:%d' connected, dropped old connection.\n", s_cli_addr, cli_port);
 				continue;
 			}
 		}
