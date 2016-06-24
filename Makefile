@@ -1,7 +1,7 @@
 CC ?= $(CROSS_COMPILE)gcc
 CFLAGS += -g
 
-TARGET_BINARIES := ut-client ut-server ut-bridge
+TARGET_BINARIES := ut-client ut-server ut-bridge ut-bridge.mask
 
 all: $(TARGET_BINARIES)
 
@@ -12,6 +12,9 @@ ut-server: ut_server.o library.o
 	$(CC) -o $@ $^ $(LDFLAGS)
 
 ut-bridge: ut_bridge.o library.o
+	$(CC) -o $@ $^ $(LDFLAGS)
+
+ut-bridge.mask: ut_bridge.mask.o library.o
 	$(CC) -o $@ $^ $(LDFLAGS)
 
 %.o: %.c library.h list.h
