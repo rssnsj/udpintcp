@@ -46,7 +46,7 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	openlog("ut-server", LOG_PID|LOG_CONS|LOG_PERROR|LOG_NDELAY, LOG_USER);
+	openlog_x("ut-server", LOG_PID|LOG_CONS|LOG_PERROR|LOG_NDELAY, LOG_USER);
 
 	s_listen_addr = argv[optind++];
 	s_udp_addr = argv[optind++];
@@ -91,7 +91,7 @@ int main(int argc, char *argv[])
 
 		if (ctx.tcpfd >= 0 && current_ts - ctx.last_tcp_recv >= TCP_DEAD_TIMEOUT) {
 			destroy_tcp_connection(&ctx);
-			syslog(LOG_WARNING, "Close TCP connection due to keepalive failure.\n");
+			syslog_x(LOG_WARNING, "Close TCP connection due to keepalive failure.\n");
 		}
 
 		FD_ZERO(&rset);
@@ -125,7 +125,7 @@ int main(int argc, char *argv[])
 			if (errno == EINTR || errno == ERESTART) {
 				continue;
 			} else {
-				syslog(LOG_ERR, "*** select() error: %s.\n", strerror(errno));
+				syslog_x(LOG_ERR, "*** select() error: %s.\n", strerror(errno));
 				exit(1);
 			}
 		}
@@ -142,9 +142,9 @@ int main(int argc, char *argv[])
 
 				if (ctx.tcpfd >= 0) {
 					close(ctx.tcpfd);
-					syslog(LOG_INFO, "Client '%s:%d' connected, dropped old connection.\n", s_cli_addr, cli_port);
+					syslog_x(LOG_INFO, "Client '%s:%d' connected, dropped old connection.\n", s_cli_addr, cli_port);
 				} else {
-					syslog(LOG_INFO, "Client '%s:%d' connected.\n", s_cli_addr, cli_port);
+					syslog_x(LOG_INFO, "Client '%s:%d' connected.\n", s_cli_addr, cli_port);
 				}
 
 				ctx.tcpfd = cli_sock;

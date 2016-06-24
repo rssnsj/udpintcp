@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define __SUPPRESS_SYSLOG__
 #define main real_main
 #include "ut_bridge.c"
 #undef main

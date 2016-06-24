@@ -46,7 +46,7 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	openlog("ut-client", LOG_PID|LOG_CONS|LOG_PERROR|LOG_NDELAY, LOG_USER);
+	openlog_x("ut-client", LOG_PID|LOG_CONS|LOG_PERROR|LOG_NDELAY, LOG_USER);
 
 	s_udp_addr = argv[optind++];
 	s_server_addr = argv[optind++];
@@ -82,7 +82,7 @@ int main(int argc, char *argv[])
 			sockaddr_to_print(&server_addr, s_addr, &port);
 
 			if (ctx.tcpfd >= 0) {
-				syslog(LOG_WARNING, "Close TCP connection due to keepalive failure.\n");
+				syslog_x(LOG_WARNING, "Close TCP connection due to keepalive failure.\n");
 				close(ctx.tcpfd);
 			}
 
@@ -91,7 +91,7 @@ int main(int argc, char *argv[])
 
 			if (connect(ctx.tcpfd, (struct sockaddr *)&server_addr,
 				sizeof_sockaddr(&server_addr)) < 0) {
-				syslog(LOG_WARNING, "Failed to connect '%s:%d': %s. Retrying later.\n",
+				syslog_x(LOG_WARNING, "Failed to connect '%s:%d': %s. Retrying later.\n",
 						s_addr, port, strerror(errno));
 				destroy_tcp_connection(&ctx);
 				sleep(5);
@@ -100,7 +100,7 @@ int main(int argc, char *argv[])
 
 			tcp_connection_established(&ctx);
 
-			syslog(LOG_INFO, "Connected to server '%s:%d'.\n", s_addr, port);
+			syslog_x(LOG_INFO, "Connected to server '%s:%d'.\n", s_addr, port);
 			continue;
 		}
 
@@ -131,7 +131,7 @@ int main(int argc, char *argv[])
 			if (errno == EINTR || errno == ERESTART) {
 				continue;
 			} else {
-				syslog(LOG_ERR, "*** select() error: %s.\n", strerror(errno));
+				syslog_x(LOG_ERR, "*** select() error: %s.\n", strerror(errno));
 				exit(1);
 			}
 		}

@@ -154,7 +154,7 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	openlog("ut-bridge", LOG_PID|LOG_CONS|LOG_PERROR|LOG_NDELAY, LOG_USER);
+	openlog_x("ut-bridge", LOG_PID|LOG_CONS|LOG_PERROR|LOG_NDELAY, LOG_USER);
 
 	init_bridge_conn_ctx_pair(conn_pair);
 
@@ -177,7 +177,7 @@ int main(int argc, char *argv[])
 			/* Check and close it if an existing connection is dead */
 			if (ctx->tcpfd >= 0 &&
 				time(NULL) - ctx->last_tcp_recv >= TCP_DEAD_TIMEOUT) {
-				syslog(LOG_WARNING, "Close TCP connection due to keepalive failure.\n");
+				syslog_x(LOG_WARNING, "Close TCP connection due to keepalive failure.\n");
 				destroy_bridge_connection(ctx);
 			}
 
@@ -192,10 +192,10 @@ int main(int argc, char *argv[])
 				if (connect(ctx->tcpfd, (struct sockaddr *)&ctx->server_addr,
 					sizeof_sockaddr(&ctx->server_addr)) == 0) {
 					bridge_conn_established(ctx);
-					syslog(LOG_INFO, "Connected to server '%s:%d'.\n", s_addr, port);
+					syslog_x(LOG_INFO, "Connected to server '%s:%d'.\n", s_addr, port);
 				} else {
 					destroy_bridge_connection(ctx);
-					syslog(LOG_WARNING, "Failed to connect '%s:%d': %s. Retrying later.\n",
+					syslog_x(LOG_WARNING, "Failed to connect '%s:%d': %s. Retrying later.\n",
 							s_addr, port, strerror(errno));
 					/* Mark the failure time to avoid retrying too fast */
 					ctx->last_tcp_send = time(NULL);
@@ -227,7 +227,7 @@ int main(int argc, char *argv[])
 				if (errno == EINTR || errno == ERESTART) {
 					continue;
 				} else {
-					syslog(LOG_ERR, "*** select() error: %s.\n", strerror(errno));
+					syslog_x(LOG_ERR, "*** select() error: %s.\n", strerror(errno));
 					exit(1);
 				}
 			}

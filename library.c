@@ -292,7 +292,7 @@ int process_tcp_receive(struct ut_comm_context *ctx)
 	rc = recv(ctx->tcpfd, ctx->tcp_rx_buf + ctx->tcp_rx_dlen,
 			UT_TCP_RX_BUFFER_SIZE - ctx->tcp_rx_dlen, 0);
 	if (rc <= 0) {
-		syslog(LOG_INFO, "TCP connection closed.\n");
+		syslog_x(LOG_INFO, "TCP connection closed.\n");
 		destroy_tcp_connection(ctx);
 		return -1;
 	}
@@ -328,7 +328,7 @@ int process_tcp_receive(struct ut_comm_context *ctx)
 			}
 		} else if (pkt_len > UT_TCP_RX_BUFFER_SIZE - UT_TCP_HDR_LEN) {
 			/* Illegal length */
-			syslog(LOG_INFO, "Bogus packet length '%u', dropping the connection.\n",
+			syslog_x(LOG_INFO, "Bogus packet length '%u', dropping the connection.\n",
 					(unsigned)pkt_len);
 			destroy_tcp_connection(ctx);
 			return -1;
@@ -364,7 +364,7 @@ int process_udp_receive(struct ut_comm_context *ctx, struct front_end_conn *ce)
 	if (ctx->is_front_end) {
 		rc = recv(ce->udpfd, rx_buf, UT_UDP_RX_BUFFER_SIZE, 0);
 		if (rc <= 0) {
-			syslog(LOG_ERR, "*** Failed to receive from frontend UDP socket: %s.\n",
+			syslog_x(LOG_ERR, "*** Failed to receive from frontend UDP socket: %s.\n",
 					strerror(errno));
 			return -1;
 		}
@@ -380,7 +380,7 @@ int process_udp_receive(struct ut_comm_context *ctx, struct front_end_conn *ce)
 		rc = recvfrom(ctx->back_end.udpfd, rx_buf, UT_UDP_RX_BUFFER_SIZE,
 				0, (struct sockaddr *)&client_addr, &client_alen);
 		if (rc <= 0) {
-			syslog(LOG_ERR, "*** Failed to receive from backend UDP socket: %s.\n",
+			syslog_x(LOG_ERR, "*** Failed to receive from backend UDP socket: %s.\n",
 					strerror(errno));
 			return -1;
 		}
@@ -401,7 +401,7 @@ int process_udp_receive(struct ut_comm_context *ctx, struct front_end_conn *ce)
 
 	rc = send_all(ctx->tcpfd, tx_buf, UT_TCP_HDR_LEN + rx_len, 0);
 	if (rc <= 0) {
-		syslog(LOG_INFO, "TCP connection broken.\n");
+		syslog_x(LOG_INFO, "TCP connection broken.\n");
 		destroy_tcp_connection(ctx);
 		return -1;
 	}

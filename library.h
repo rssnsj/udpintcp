@@ -48,6 +48,14 @@ static inline void hexdump(void *d, size_t len)
 	printf("\n");
 }
 
+#ifdef __SUPPRESS_SYSLOG__
+	#define openlog_x(...)  openlog(__VA_ARGS__)
+	#define syslog_x(...)   ((void)0)
+#else
+	#define openlog_x(...)  openlog(__VA_ARGS__)
+	#define syslog_x(...)   syslog(__VA_ARGS__)
+#endif
+
 #define TCP_DEAD_TIMEOUT  15
 #define UDP_SESSION_TIMEOUT  60
 #define KEEPALIVE_INTERVAL  3
