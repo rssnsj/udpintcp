@@ -326,6 +326,12 @@ int process_tcp_receive(struct ut_comm_context *ctx)
 				sendto(ctx->back_end.udpfd, pkt_data, pkt_len, 0,
 						(struct sockaddr *)&addr, sizeof(addr));
 			}
+		} else if (pkt_len > UT_TCP_RX_BUFFER_SIZE - UT_TCP_HDR_LEN) {
+			/* Illegal length */
+			syslog(LOG_INFO, "Bogus packet length '%u', dropping the connection.\n",
+					(unsigned)pkt_len);
+			destroy_tcp_connection(ctx);
+			return -1;
 		} else {
 			break;
 		}

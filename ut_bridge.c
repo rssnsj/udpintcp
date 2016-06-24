@@ -96,6 +96,12 @@ static int process_bridge_conn_receive(struct bridge_conn_ctx *ctx)
 					destroy_bridge_connection(ctx->mate_ctx);
 				}
 			}
+		} else if (pkt_len > UT_TCP_RX_BUFFER_SIZE - UT_TCP_HDR_LEN) {
+			/* Illegal length */
+			syslog(LOG_INFO, "Bogus packet length '%u', dropping the connection.\n",
+					(unsigned)pkt_len);
+			destroy_bridge_connection(ctx);
+			return -1;
 		} else {
 			break;
 		}
